@@ -10,6 +10,10 @@ const cuentaSchema = new mongoose.Schema({
         type: Boolean,
         required: true
     },
+    arcanaePoints: {
+        type: Number,
+        required: true
+    },
     pjs: {
         type: [],
         required: true

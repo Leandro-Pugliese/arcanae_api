@@ -14,6 +14,10 @@ const personajeSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
+    oro: {
+        type: Number,
+        required: true
+    },
     owner: {
         type: String,
         required: true
@@ -59,6 +63,10 @@ const personajeSchema = new mongoose.Schema({
         required: true
     },
     casco: {
+        type: String,
+        required: true
+    },
+    joya: {
         type: String,
         required: true
     },
