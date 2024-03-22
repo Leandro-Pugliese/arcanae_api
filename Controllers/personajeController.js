@@ -3,6 +3,7 @@ const Cuentas = require("../Models/Cuenta");
 const Personajes = require("../Models/Personaje");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
+const { criaturas, items } = require("../Objetos/objetos");
 
 const createPersonaje = async (req, res) => {
     const { body } = req
@@ -117,15 +118,106 @@ const comercioPersonaje = async (req, res) => {
             if (!cuenta) {
                 return res.status(403).send("Credenciales inválidas.");
             } else {
+                const item = items.filter((item) => item.nombre === body.itemNombre);
+                let inventarioPj = pj.inventario;
+                const isItem = inventarioPj.filter((element) => element.nombre === body.itemNombre);
                 if (cuenta.pjs.includes(pj.nombre) === true) {
-                    await Personajes.updateOne({_id: body._id},
-                        {
-                            $set: {
-                                oro: body.oro,
-                                inventario: body.inventario
+                    if (body.operacion === "COMPRA") {
+                        const valorTransaccion = item[0].precioCompra * body.itemCantidad
+                        if (valorTransaccion <= pj.oro) {
+                            if (isItem.length === 0) {
+                                let objInventarioCreado =    {   
+                                                                nombre: item[0].nombre, 
+                                                                cantidad: body.itemCantidad
+                                                            }
+                                inventarioPj.push(objInventarioCreado)
+                                await Personajes.updateOne({_id: body._id},
+                                    {
+                                        $set: {
+                                            oro: pj.oro - valorTransaccion,
+                                            inventario: inventarioPj
+                                        }
+                                    })
+                                res.status(201).send("Transacción realizada.")
+                            } else {
+                                const itemInventario = inventarioPj.filter((item) => item.nombre === body.itemNombre);
+                                let objInventarioModificado =    {
+                                                                nombre: itemInventario[0].nombre,
+                                                                cantidad: itemInventario[0].cantidad + body.itemCantidad
+                                                            }
+                                let inventarioFiltrado = inventarioPj.filter((item) => item.nombre !== body.itemNombre);  
+                                inventarioFiltrado.push(objInventarioModificado)
+                                await Personajes.updateOne({_id: body._id},
+                                    {
+                                        $set: {
+                                            oro: pj.oro - valorTransaccion,
+                                            inventario: inventarioFiltrado
+                                        }
+                                    })
+                                res.status(201).send("Transacción realizada.")                         
                             }
-                        })
-                    res.status(201).send("Transacción realizada.")
+                        } else {
+                            res.status(201).send("Transacción rechazada, no tienes suficiente oro.")
+                        }
+                    } else if (body.operacion === "VENTA") {
+                        const itemsEquipados = [ pj.ropa, pj.arma, pj.escudo, pj.casco, pj.joya ]
+                        if (!isItem) {
+                            res.status(403).send("Transacción rechazada, no tienes el item en tu inventario.")
+                        } else {
+                            if (isItem[0].cantidad > 1) {
+                                const valorTransaccion = item[0].precioVenta * body.itemCantidad
+                                if ((isItem[0].cantidad - body.itemCantidad) === 0) {
+                                    if (itemsEquipados.includes(body.itemNombre) === false) {
+                                        let inventarioFiltrado = inventarioPj.filter((item) => item.nombre !== body.itemNombre);
+                                        await Personajes.updateOne({_id: body._id},
+                                            {
+                                                $set: {
+                                                    oro: pj.oro + valorTransaccion,
+                                                    inventario: inventarioFiltrado
+                                                }
+                                            })
+                                        res.status(201).send("Transacción realizada.");
+                                    } else {
+                                        res.status(403).send("Transacción rechazada, el item que quieres vender esta equipado. Vende menos items o desequipa el item.");
+                                    }
+                                } else {
+                                    const itemInventario = inventarioPj.filter((item) => item.nombre === body.itemNombre);
+                                    let objInventarioModificado =    {
+                                        nombre: itemInventario[0].nombre,
+                                        cantidad: itemInventario[0].cantidad - body.itemCantidad
+                                    }
+                                    let inventarioFiltrado = inventarioPj.filter((item) => item.nombre !== body.itemNombre);
+                                    inventarioFiltrado.push(objInventarioModificado)
+                                    await Personajes.updateOne({_id: body._id},
+                                        {
+                                            $set: {
+                                                oro: pj.oro + valorTransaccion,
+                                                inventario: inventarioFiltrado
+                                            }
+                                        })
+                                    res.status(201).send("Transacción realizada.") 
+                                }
+                            } else if (isItem[0].cantidad === 1) {
+                                if (itemsEquipados.includes(body.itemNombre) === false) {
+                                    let inventarioFiltrado = inventarioPj.filter((item) => item.nombre !== body.itemNombre);
+                                        await Personajes.updateOne({_id: body._id},
+                                            {
+                                                $set: {
+                                                    oro: pj.oro + item[0].precioVenta,
+                                                    inventario: inventarioFiltrado
+                                                }
+                                            })
+                                        res.status(201).send("Transacción realizada.")
+                                } else {
+                                    res.status(403).send("Transacción rechazada, el item que quieres vender esta equipado.");
+                                }
+                            } else {
+                                res.status(403).send("Transacción rechazada, hubo un error con las cantidades del item.")
+                            }
+                        }
+                    } else {
+                        res.status(403).send("Transacción rechazada.")
+                    }
                 } else {
                     return res.status(403).send("El Personaje no pertenece a la cuenta a la que ingresaste.");
                 }
@@ -149,53 +241,104 @@ const equiparItem = async (req, res) => {
             if (!cuenta) {
                 return res.status(403).send("Credenciales inválidas.");
             } else {
+                const item = items.filter((item) => item.nombre === body.itemNombre);
                 let nombreItemsInventario = ["-"]
                 pj.inventario.map(element => (
                     nombreItemsInventario.push(element.nombre)
                 ))
                 if (cuenta.pjs.includes(pj.nombre) === true) {
-                    if (body.item.tipo === "Ropa" && nombreItemsInventario.includes(body.item.nombre)) {
-                        await Personajes.updateOne({_id: body._id},
-                            {
-                                $set: {
-                                    ropa: body.item.nombre
-                                }
-                            })
-                        res.status(200).send("Equipo modificado.")
-                    } else if (body.item.tipo === "Arma" && nombreItemsInventario.includes(body.item.nombre)) {
-                        await Personajes.updateOne({_id: body._id},
-                            {
-                                $set: {
-                                    arma: body.item.nombre
-                                }
-                            })
-                        res.status(200).send("Equipo modificado.")
-                    } else if (body.item.tipo === "Escudo" && nombreItemsInventario.includes(body.item.nombre)) {
-                        await Personajes.updateOne({_id: body._id},
-                            {
-                                $set: {
-                                    escudo: body.item.nombre
-                                }
-                            })
-                        res.status(200).send("Equipo modificado.")
-                    } else if (body.item.tipo === "Casco" && nombreItemsInventario.includes(body.item.nombre)) {
-                        await Personajes.updateOne({_id: body._id},
-                            {
-                                $set: {
-                                    casco: body.item.nombre
-                                }
-                            })
-                        res.status(200).send("Equipo modificado.")
-                    }  else if (body.item.tipo === "Joya" && nombreItemsInventario.includes(body.item.nombre)) {
-                        await Personajes.updateOne({_id: body._id},
-                            {
-                                $set: {
-                                    joya: body.item.nombre
-                                }
-                            })
-                        res.status(200).send("Equipo modificado.")
+                    if(item.length > 0) {
+                        if (item[0].clasePermitida.includes(pj.clase)) {
+                            if (body.itemTipo === "Ropa" && nombreItemsInventario.includes(body.itemNombre)) {
+                                await Personajes.updateOne({_id: body._id},
+                                    {
+                                        $set: {
+                                            ropa: body.itemNombre
+                                        }
+                                    })
+                                res.status(200).send("Equipo modificado.")
+                            } else if (body.itemTipo === "Arma" && nombreItemsInventario.includes(body.itemNombre)) {
+                                await Personajes.updateOne({_id: body._id},
+                                    {
+                                        $set: {
+                                            arma: body.itemNombre
+                                        }
+                                    })
+                                res.status(200).send("Equipo modificado.")
+                            } else if (body.itemTipo === "Escudo" && nombreItemsInventario.includes(body.itemNombre)) {
+                                await Personajes.updateOne({_id: body._id},
+                                    {
+                                        $set: {
+                                            escudo: body.itemNombre
+                                        }
+                                    })
+                                res.status(200).send("Equipo modificado.")
+                            } else if (body.itemTipo === "Casco" && nombreItemsInventario.includes(body.itemNombre)) {
+                                await Personajes.updateOne({_id: body._id},
+                                    {
+                                        $set: {
+                                            casco: body.itemNombre
+                                        }
+                                    })
+                                res.status(200).send("Equipo modificado.")
+                            }  else if (body.itemTipo === "Joya" && nombreItemsInventario.includes(body.itemNombre)) {
+                                await Personajes.updateOne({_id: body._id},
+                                    {
+                                        $set: {
+                                            joya: body.itemNombre
+                                        }
+                                    })
+                                res.status(200).send("Equipo modificado.")
+                            } else {
+                                res.status(403).send("No es posible equipar el item.")
+                            }
+                        } else {
+                            res.status(403).send("Tu clase no puede usar este objeto.")
+                        }
                     } else {
-                        res.status(200).send("No es posible equipar el item.")
+                        if (body.itemTipo === "Ropa" && nombreItemsInventario.includes(body.itemNombre)) {
+                            await Personajes.updateOne({_id: body._id},
+                                {
+                                    $set: {
+                                        ropa: body.itemNombre
+                                    }
+                                })
+                            res.status(200).send("Equipo modificado.")
+                        } else if (body.itemTipo === "Arma" && nombreItemsInventario.includes(body.itemNombre)) {
+                            await Personajes.updateOne({_id: body._id},
+                                {
+                                    $set: {
+                                        arma: body.itemNombre
+                                    }
+                                })
+                            res.status(200).send("Equipo modificado.")
+                        } else if (body.itemTipo === "Escudo" && nombreItemsInventario.includes(body.itemNombre)) {
+                            await Personajes.updateOne({_id: body._id},
+                                {
+                                    $set: {
+                                        escudo: body.itemNombre
+                                    }
+                                })
+                            res.status(200).send("Equipo modificado.")
+                        } else if (body.itemTipo === "Casco" && nombreItemsInventario.includes(body.itemNombre)) {
+                            await Personajes.updateOne({_id: body._id},
+                                {
+                                    $set: {
+                                        casco: body.itemNombre
+                                    }
+                                })
+                            res.status(200).send("Equipo modificado.")
+                        }  else if (body.itemTipo === "Joya" && nombreItemsInventario.includes(body.itemNombre)) {
+                            await Personajes.updateOne({_id: body._id},
+                                {
+                                    $set: {
+                                        joya: body.itemNombre
+                                    }
+                                })
+                            res.status(200).send("Equipo modificado.")
+                        } else {
+                            res.status(403).send("No es posible equipar el item.")
+                        }
                     }
                 } else {
                     return res.status(403).send("El Personaje no pertenece a la cuenta a la que ingresaste.");
@@ -221,54 +364,57 @@ const ganarExperiencia = async (req, res) => {
                 return res.status(403).send("Credenciales inválidas.");
             } else {
                 if (cuenta.pjs.includes(pj.nombre) === true) {
-                    
-                    // Cálculo experiencia requerida para pasar al próximo nivel.
-                    let iteraciones = pj.nivel;
-                    let experienciaRequerida = 250;
-                    // Bucle para aumentar el valor en un 20% en cada iteración.
-                    for (let i = 1; i < iteraciones; i++) {
-                        experienciaRequerida *= 1.20; // Multiplicamos por 1.20 para aumentar en un 20%.
-                    }
+                    if (pj.nivel < 50) {
+                        // Cálculo experiencia requerida para pasar al próximo nivel.
+                        let iteraciones = pj.nivel;
+                        let experienciaRequerida = 250;
+                        // Bucle para aumentar el valor en un 20% en cada iteración.
+                        for (let i = 1; i < iteraciones; i++) {
+                            experienciaRequerida *= 1.20; // Multiplicamos por 1.20 para aumentar en un 20%.
+                        }
 
-                    let experienciaObtenida = body.experiencia
-                    let experienciaPersonaje = pj.experiencia
-                    let experienciaTotal = experienciaPersonaje + experienciaObtenida
-                    
-                    if (experienciaTotal <= experienciaRequerida) {
-                        await Personajes.updateOne({_id: body._id},
-                            {
-                                $set: {
-                                    experiencia: experienciaTotal
-                                }
-                            })
-                        res.status(200).send({experienciaPersonaje, experienciaObtenida, experienciaTotal, experienciaRequerida})
-                    } else if (experienciaTotal > experienciaRequerida) {
-                        let experienciaNueva = experienciaTotal - experienciaRequerida
-                        let nuevoNivelPj = pj.nivel + 1
-                        await Personajes.updateOne({_id: body._id},
-                            {
-                                $set: {
-                                    nivel: nuevoNivelPj,
-                                    experiencia: experienciaNueva,
-                                    atributos: {
-                                        vida: pj.atributos.vida + 2,
-                                        fuerza: pj.atributos.fuerza + 2,
-                                        resistencia: pj.atributos.resistencia + 2,
-                                        destreza: pj.atributos.destreza + 2,
-                                        inteligencia: pj.atributos.inteligencia + 2,
-                                        liderazgo: pj.atributos.liderazgo + 2,
-                                        combate: pj.atributos.combate + 2,
-                                        defensa: pj.atributos.defensa + 2,
-                                        navegacion: pj.atributos.navegacion + 2
-                                    },
-                                    skills: {
-                                        obtenidos: pj.skills.obtenidos + 2,
-                                        disponibles: pj.skills.disponibles + 2 
+                        let experienciaObtenida = body.experiencia
+                        let experienciaPersonaje = pj.experiencia
+                        let experienciaTotal = experienciaPersonaje + experienciaObtenida
+                        
+                        if (experienciaTotal <= experienciaRequerida) {
+                            await Personajes.updateOne({_id: body._id},
+                                {
+                                    $set: {
+                                        experiencia: experienciaTotal
                                     }
-                                }
-                            })
-                        const msj = "¡Felicitaciones, has subido de nivel!"
-                        res.status(200).send({experienciaPersonaje, experienciaObtenida, msj, nuevoNivelPj, experienciaNueva, experienciaRequerida})
+                                })
+                            res.status(200).send({experienciaPersonaje, experienciaObtenida, experienciaTotal, experienciaRequerida})
+                        } else if (experienciaTotal > experienciaRequerida) {
+                            let experienciaNueva = experienciaTotal - experienciaRequerida
+                            let nuevoNivelPj = pj.nivel + 1
+                            await Personajes.updateOne({_id: body._id},
+                                {
+                                    $set: {
+                                        nivel: nuevoNivelPj,
+                                        experiencia: experienciaNueva,
+                                        atributos: {
+                                            vida: pj.atributos.vida + 2,
+                                            fuerza: pj.atributos.fuerza + 2,
+                                            resistencia: pj.atributos.resistencia + 2,
+                                            destreza: pj.atributos.destreza + 2,
+                                            inteligencia: pj.atributos.inteligencia + 2,
+                                            liderazgo: pj.atributos.liderazgo + 2,
+                                            combate: pj.atributos.combate + 2,
+                                            defensa: pj.atributos.defensa + 2,
+                                            navegacion: pj.atributos.navegacion + 2
+                                        },
+                                        skills: {
+                                            obtenidos: pj.skills.obtenidos + 2,
+                                            disponibles: pj.skills.disponibles + 2 
+                                        }
+                                    }
+                                })
+                            const msj = "¡Felicitaciones, has subido de nivel!"
+                            res.status(200).send({experienciaPersonaje, experienciaObtenida, msj, nuevoNivelPj, experienciaNueva, experienciaRequerida})
+                        } else {
+                            res.status(200).send(`El personaje alcanzo el nivel máximo, no puedes obtener más experiencia.`)
+                        }
                     } else {
                         res.status(403).send(`Error con la experiencia y nivel del personaje.`)
                     }
