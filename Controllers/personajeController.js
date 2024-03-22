@@ -3,7 +3,7 @@ const Cuentas = require("../Models/Cuenta");
 const Personajes = require("../Models/Personaje");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
-const { criaturas, items } = require("../Objetos/objetos");
+const { atributos, criaturas, items } = require("../Objetos/objetos");
 
 const createPersonaje = async (req, res) => {
     const { body } = req
@@ -21,6 +21,11 @@ const createPersonaje = async (req, res) => {
         if (isPersonaje) {
             return res.status(403).send("El nombre ingresado ya se encuentra en uso.");
         }
+        // Asignación de atributos para el pj.
+        let atributosPersonaje = {}
+        const atributosFiltrados = atributos.filter((elemento) => elemento.raza === body.raza);
+        atributosPersonaje = atributosFiltrados[0]
+        
         const personaje = await Personajes.create({
             nombre: body.nombre,
             nivel: 1,
@@ -30,7 +35,7 @@ const createPersonaje = async (req, res) => {
             genero: body.genero,
             raza: body.raza,
             clase: body.clase,
-            atributos: body.atributos,
+            atributos: atributosPersonaje,
             skills: {
                         obtenidos: 2,
                         disponibles: 2
@@ -70,13 +75,14 @@ const createPersonaje = async (req, res) => {
         })
 
         // Update Pjs Cuenta
+        let listaPersonajes = isCuenta.pjs.filter((elemento) => elemento !== "-")
+        listaPersonajes.push(body.nombre)
         await Cuentas.updateOne({email: email},
             {
                 $set: {
-                    pjs: body.pjs
+                    pjs: listaPersonajes
                 }
             })
-
         const mensaje = "Personaje creado exitosamente.";
         res.status(201).send({ personaje, mensaje });
 
@@ -688,11 +694,15 @@ const eliminarPersonaje = async (req, res) => {
                 if (cuenta.pjs.includes(pj.nombre) === true ) {
                     const pinMatch = await bcrypt.compare(body.pin, cuenta.pin);
                     if (pinMatch) {
+                        let listaPersonajesNueva = cuenta.pjs.filter((personaje) => personaje !== pj.nombre)
+                        if (listaPersonajesNueva.length === 0) {
+                            listaPersonajesNueva = ["-"]
+                        }
                         await Personajes.deleteOne({_id: pj._id})
                         await Cuentas.updateOne({email: email},
                             {
                                 $set: {
-                                    pjs: body.pjs
+                                    pjs: listaPersonajesNueva
                                 }
                             })
                         res.status(200).send("Personaje borrado.")
