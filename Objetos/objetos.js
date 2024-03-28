@@ -195,5 +195,49 @@ const items = [
     },
 ]
 
+const misiones = [
+    {
+        nombre: "Limpíeza del bosque",
+        tipo: "NPC",
+        criatura: ["Serpiente"],
+        objetivo: [4],
+        obtenido: [0]
+    },
+    {
+        nombre: "Amenaza en manada",
+        tipo: "NPC",
+        criatura: ["Lobo"],
+        objetivo: [12],
+        obtenido: [0]
+    },
+    {
+        nombre: "Bandidos",
+        tipo: "NPC",
+        criatura: ["Bandido"],
+        objetivo: [10],
+        obtenido: [0]
+    },
+    {
+        nombre: "Explorando cuevas",
+        tipo: "NPC",
+        criatura: ["Orco brujo", "Troll"],
+        objetivo: [4, 1],
+        obtenido: [0, 0]
+    },
+    {
+        nombre: "Busca pleitos",
+        tipo: "PVP",
+        criatura: ["PVP"],
+        objetivo: [3],
+        obtenido: [0]
+    },
+    {
+        nombre: "Sed de sangre",
+        tipo: "PVP",
+        criatura: ["PVP"],
+        objetivo: [10],
+        obtenido: [0]
+    }
+]
 
-module.exports = {atributos, criaturas, items}
+module.exports = {atributos, criaturas, items, misiones}

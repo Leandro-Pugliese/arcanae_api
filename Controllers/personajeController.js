@@ -3,7 +3,7 @@ const Cuentas = require("../Models/Cuenta");
 const Personajes = require("../Models/Personaje");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
-const { atributos, criaturas, items } = require("../Objetos/objetos");
+const { atributos, criaturas, items, misiones } = require("../Objetos/objetos");
 
 const createPersonaje = async (req, res) => {
     const { body } = req
@@ -67,9 +67,16 @@ const createPersonaje = async (req, res) => {
                         ganados: 0
                     },
             misiones:{
-                        activa: false,
                         aceptadas: 0,
-                        superadas: 0
+                        superadas: 0,
+                        activa: false,
+                        quest:  {
+                                    nombre: "-",
+                                    tipo: "-",
+                                    criatura: [],
+                                    objetivo: [],
+                                    obtenido: []
+                                }
                     },  
             criaturasEliminadas: 0     
         })
@@ -129,7 +136,20 @@ const comercioPersonaje = async (req, res) => {
                 const isItem = inventarioPj.filter((element) => element.nombre === body.itemNombre);
                 if (cuenta.pjs.includes(pj.nombre) === true) {
                     if (body.operacion === "COMPRA") {
-                        const valorTransaccion = item[0].precioCompra * body.itemCantidad
+                        //------------------------------------------------------------------------------------------------------------------------------------------------------
+                        // Mecánica de descuentos por skills en comercio.
+                        const precioItem = item[0].precioCompra;
+                        // Calcular la cantidad de descuentos a aplicar cada 5 puntos de comercio.
+                        const descuentos = Math.floor(pj.atributos.comercio / 5);
+                        // Calcular el porcentaje de descuento (es lo mismo que arriba pero si quiero modificar el porcentaje cada 5pts solo modifico el número aca abajo).
+                        const porcentajeDescuento = descuentos * 1;
+                        // Calcular el descuento total
+                        const descuentoTotal = porcentajeDescuento / 100 * precioItem
+                        // Calcular el valor final con descuento
+                        const valorFinalItem = Math.floor(precioItem - descuentoTotal);
+                        //------------------------------------------------------------------------------------------------------------------------------------------------------
+                        // Calculo el valor de la transacción.
+                        const valorTransaccion = valorFinalItem * body.itemCantidad
                         if (valorTransaccion <= pj.oro) {
                             if (isItem.length === 0) {
                                 let objInventarioCreado =    {   
@@ -357,7 +377,7 @@ const equiparItem = async (req, res) => {
     }
 }
 
-const ganarExperiencia = async (req, res) => {
+const ganarExperienciaCriaturas = async (req, res) => {
     const {body} = req
     try {
         const pj = await Personajes.findOne({_id: body._id});
@@ -408,7 +428,8 @@ const ganarExperiencia = async (req, res) => {
                                             liderazgo: pj.atributos.liderazgo + 2,
                                             combate: pj.atributos.combate + 2,
                                             defensa: pj.atributos.defensa + 2,
-                                            navegacion: pj.atributos.navegacion + 2
+                                            navegacion: pj.atributos.navegacion + 2,
+                                            comercio: pj.atributos.comercio + 2
                                         },
                                         skills: {
                                             obtenidos: pj.skills.obtenidos + 2,
@@ -720,4 +741,4 @@ const eliminarPersonaje = async (req, res) => {
     }
 }
 
-module.exports = { createPersonaje, dataPersonaje, comercioPersonaje, equiparItem, ganarExperiencia, asignarSkills, eliminarPersonaje }
+module.exports = { createPersonaje, dataPersonaje, comercioPersonaje, equiparItem, ganarExperienciaCriaturas, asignarSkills, eliminarPersonaje }

@@ -1,6 +1,6 @@
 const express = require("express");
 const { isAuthenticated, createCuenta, loginCuenta } = require("../Controllers/cuentaController");
-const { createPersonaje, dataPersonaje, comercioPersonaje, equiparItem, ganarExperiencia, asignarSkills, eliminarPersonaje } = require("../Controllers/personajeController");
+const { createPersonaje, dataPersonaje, comercioPersonaje, equiparItem, ganarExperienciaCriaturas, asignarSkills, eliminarPersonaje } = require("../Controllers/personajeController");
 
 const router = express.Router();
 
@@ -13,7 +13,7 @@ router.post("/crear-pj", isAuthenticated, createPersonaje);
 router.post("/data-pj", isAuthenticated, dataPersonaje);
 router.post("/comercio-pj", isAuthenticated, comercioPersonaje);
 router.post("/equipar-item", isAuthenticated, equiparItem);
-router.post("/ganar-experiencia", isAuthenticated, ganarExperiencia);
+router.post("/ganar-experiencia-criaturas", isAuthenticated, ganarExperienciaCriaturas);
 router.post("/asignar-skills", isAuthenticated, asignarSkills);
 router.post("/borrar-pj", isAuthenticated, eliminarPersonaje);
 
