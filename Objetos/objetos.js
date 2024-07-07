@@ -4,55 +4,63 @@ const express = require("express");
 const atributos = [
     {
         raza: "Humano",
-        vida: 18,
-        fuerza: 18,
-        resistencia: 18,
-        destreza: 18,
-        inteligencia: 18,
-        liderazgo: 18,
-        combate: 0,
-        defensa: 0,
-        navegacion: 0,
-        comercio: 0
+        atributos: {
+            vida: 18,
+            fuerza: 18,
+            resistencia: 18,
+            destreza: 18,
+            inteligencia: 18,
+            liderazgo: 18,
+            combate: 0,
+            defensa: 0,
+            navegacion: 0,
+            comercio: 0
+        }
     },
     {
         raza: "Elfo",
-        vida: 16,
-        fuerza: 16,
-        resistencia: 16,
-        destreza: 20,
-        inteligencia: 20,
-        liderazgo: 18,
-        combate: 0,
-        defensa: 0,
-        navegacion: 0,
-        comercio: 0
+        atributos: {
+            vida: 16,
+            fuerza: 16,
+            resistencia: 16,
+            destreza: 20,
+            inteligencia: 20,
+            liderazgo: 18,
+            combate: 0,
+            defensa: 0,
+            navegacion: 0,
+            comercio: 0
+        }
     },
     {
         raza: "Elfo Oscuro",
-        vida: 16,
-        fuerza: 18,
-        resistencia: 17,
-        destreza: 19,
-        inteligencia: 20,
-        liderazgo: 16,
-        combate: 0,
-        defensa: 0,
-        navegacion: 0,
-        comercio: 0
+        atributos: {
+            vida: 16,
+            fuerza: 18,
+            resistencia: 17,
+            destreza: 19,
+            inteligencia: 20,
+            liderazgo: 16,
+            combate: 0,
+            defensa: 0,
+            navegacion: 0,
+            comercio: 0
+        }
     },
     {
         raza: "Enano",
-        vida: 20,
-        fuerza: 20,
-        resistencia: 20,
-        destreza: 16,
-        inteligencia: 14,
-        liderazgo: 20,
-        combate: 0,
-        defensa: 0,
-        navegacion: 0,
-        comercio: 0
+        atributos: {
+            vida: 20,
+            fuerza: 20,
+            resistencia: 20,
+            destreza: 16,
+            inteligencia: 14,
+            liderazgo: 20,
+            combate: 0,
+            defensa: 0,
+            navegacion: 0,
+            comercio: 0
+        }
     },
 ]
 
@@ -136,7 +144,7 @@ const items = [
         precioCompra: 50,
         precioVenta: 25,
         skillsCombate: 0,
-        clasePermitida: ["Caballero", "Trabajador"],
+        clasePermitida: ["Caballero", "Druida", "Trabajador"],
         mejoraCombate: 1 
     },
     {
