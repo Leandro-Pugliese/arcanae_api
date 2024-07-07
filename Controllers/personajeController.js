@@ -226,7 +226,8 @@ const comercioPersonaje = async (req, res) => {
                                             oro: pj.oro + valorTransaccion,
                                             inventario: inventarioFiltrado
                                         }
-                                    })
+                                    }
+                                )
                                 return res.status(201).send("Transacción realizada.");
                             } else {
                                 return res.status(403).send("Transacción rechazada, el item que quieres vender esta equipado. Vende menos items o desequipa el item.");
@@ -255,10 +256,11 @@ const comercioPersonaje = async (req, res) => {
                             await Personajes.updateOne({ _id: body._id },
                                 {
                                     $set: {
-                                        oro: pj.oro + item[0].precioVenta,
+                                        oro: pj.oro + item[0].precioVenta, //Si solo tengo un item no me importa el itemCantidad solo vendo uno meintras no este equipado.
                                         inventario: inventarioFiltrado
                                     }
-                                })
+                                }
+                            )
                             return res.status(201).send("Transacción realizada.");
                         } else {
                             return res.status(403).send("Transacción rechazada, el item que quieres vender esta equipado.");
@@ -272,140 +274,160 @@ const comercioPersonaje = async (req, res) => {
             }
         }
     } catch (error) {
-        res.status(500).send(error.message)
+        return res.status(500).send(error.message)
     }
 }
 
 const equiparItem = async (req, res) => {
-    const {body} = req
+    const {body} = req; //pjNombre, itemNombre, operacion(EQUIPAR/QUITAR)
     try {
-        const pj = await Personajes.findOne({_id: body._id});
+        const token = req.header("Authorization");
+        if (!token) {
+            return res.status(403).send('No se detecto un token en la petición.')
+        }
+        const pj = await Personajes.findOne({nombre: body.pjNombre});
         if (!pj) {
             return res.status(200).send("Personaje no encontrado.");
-        } else {
-            const { email } = jwt.decode(body.token, {complete: true}).payload;
-            const cuenta = await Cuentas.findOne({email: email});
-            if (!cuenta) {
-                return res.status(403).send("Credenciales inválidas.");
-            } else {
-                const item = items.filter((item) => item.nombre === body.itemNombre);
-                let nombreItemsInventario = ["-"]
-                pj.inventario.map(element => (
-                    nombreItemsInventario.push(element.nombre)
-                ))
-                if (cuenta.pjs.includes(pj.nombre) === true) {
-                    if(item.length > 0) {
-                        if (item[0].clasePermitida.includes(pj.clase)) {
-                            if (body.itemTipo === "Ropa" && nombreItemsInventario.includes(body.itemNombre)) {
-                                await Personajes.updateOne({_id: body._id},
-                                    {
-                                        $set: {
-                                            ropa: body.itemNombre
-                                        }
-                                    })
-                                res.status(200).send("Equipo modificado.")
-                            } else if (body.itemTipo === "Arma" && nombreItemsInventario.includes(body.itemNombre)) {
-                                await Personajes.updateOne({_id: body._id},
-                                    {
-                                        $set: {
-                                            arma: body.itemNombre
-                                        }
-                                    })
-                                res.status(200).send("Equipo modificado.")
-                            } else if (body.itemTipo === "Escudo" && nombreItemsInventario.includes(body.itemNombre)) {
-                                await Personajes.updateOne({_id: body._id},
-                                    {
-                                        $set: {
-                                            escudo: body.itemNombre
-                                        }
-                                    })
-                                res.status(200).send("Equipo modificado.")
-                            } else if (body.itemTipo === "Casco" && nombreItemsInventario.includes(body.itemNombre)) {
-                                await Personajes.updateOne({_id: body._id},
-                                    {
-                                        $set: {
-                                            casco: body.itemNombre
-                                        }
-                                    })
-                                res.status(200).send("Equipo modificado.")
-                            }  else if (body.itemTipo === "Joya" && nombreItemsInventario.includes(body.itemNombre)) {
-                                await Personajes.updateOne({_id: body._id},
-                                    {
-                                        $set: {
-                                            joya: body.itemNombre
-                                        }
-                                    })
-                                res.status(200).send("Equipo modificado.")
-                            } else {
-                                res.status(403).send("No es posible equipar el item.")
+        }
+        const { email } = jwt.decode(token, { complete: true }).payload;
+        const cuenta = await Cuentas.findOne({ email: email });
+        if (!cuenta) {
+            return res.status(403).send("Credenciales inválidas.");
+        }
+        if (cuenta.pjs.includes(pj.nombre) === true) {
+            const item = items.filter((item) => item.nombre === body.itemNombre);
+            let nombreItemsInventario = [];
+            pj.inventario.map(element => (
+                nombreItemsInventario.push(element.nombre)
+            ));
+            if (item.length === 0) {
+                return res.status(403).send("Error: item no encontrado en base de datos.")
+            }
+            if (item.length >= 2) {
+                return res.status(403).send("Error: item mal filtrado.")
+            }
+            if (item.length === 1 && body.operacion === "EQUIPAR") { // Verifico si existe el item y si la operacion es equipar. 
+                if (item[0].clasePermitida.includes(pj.clase)) {
+                    if (item[0].tipo === "Ropa" && nombreItemsInventario.includes(body.itemNombre)) {
+                        await Personajes.updateOne({ _id: pj._id },
+                            {
+                                $set: {
+                                    ropa: body.itemNombre
+                                }
                             }
-                        } else {
-                            res.status(403).send("Tu clase no puede usar este objeto.")
-                        }
+                        )
+                        return res.status(200).send("Equipo modificado.")
+                    } else if (item[0].tipo === "Arma" && nombreItemsInventario.includes(body.itemNombre)) {
+                        await Personajes.updateOne({ _id: pj._id },
+                            {
+                                $set: {
+                                    arma: body.itemNombre
+                                }
+                            })
+                        return res.status(200).send("Equipo modificado.")
+                    } else if (item[0].tipo === "Escudo" && nombreItemsInventario.includes(body.itemNombre)) {
+                        await Personajes.updateOne({ _id: pj._id },
+                            {
+                                $set: {
+                                    escudo: body.itemNombre
+                                }
+                            })
+                        return res.status(200).send("Equipo modificado.")
+                    } else if (item[0].tipo === "Casco" && nombreItemsInventario.includes(body.itemNombre)) {
+                        await Personajes.updateOne({ _id: pj._id },
+                            {
+                                $set: {
+                                    casco: body.itemNombre
+                                }
+                            })
+                        return res.status(200).send("Equipo modificado.")
+                    } else if (item[0].tipo === "Joya" && nombreItemsInventario.includes(body.itemNombre)) {
+                        await Personajes.updateOne({ _id: pj._id },
+                            {
+                                $set: {
+                                    joya: body.itemNombre
+                                }
+                            })
+                        return res.status(200).send("Equipo modificado.")
                     } else {
-                        if (body.itemTipo === "Ropa" && nombreItemsInventario.includes(body.itemNombre)) {
-                            await Personajes.updateOne({_id: body._id},
-                                {
-                                    $set: {
-                                        ropa: body.itemNombre
-                                    }
-                                })
-                            res.status(200).send("Equipo modificado.")
-                        } else if (body.itemTipo === "Arma" && nombreItemsInventario.includes(body.itemNombre)) {
-                            await Personajes.updateOne({_id: body._id},
-                                {
-                                    $set: {
-                                        arma: body.itemNombre
-                                    }
-                                })
-                            res.status(200).send("Equipo modificado.")
-                        } else if (body.itemTipo === "Escudo" && nombreItemsInventario.includes(body.itemNombre)) {
-                            await Personajes.updateOne({_id: body._id},
-                                {
-                                    $set: {
-                                        escudo: body.itemNombre
-                                    }
-                                })
-                            res.status(200).send("Equipo modificado.")
-                        } else if (body.itemTipo === "Casco" && nombreItemsInventario.includes(body.itemNombre)) {
-                            await Personajes.updateOne({_id: body._id},
-                                {
-                                    $set: {
-                                        casco: body.itemNombre
-                                    }
-                                })
-                            res.status(200).send("Equipo modificado.")
-                        }  else if (body.itemTipo === "Joya" && nombreItemsInventario.includes(body.itemNombre)) {
-                            await Personajes.updateOne({_id: body._id},
-                                {
-                                    $set: {
-                                        joya: body.itemNombre
-                                    }
-                                })
-                            res.status(200).send("Equipo modificado.")
-                        } else {
-                            res.status(403).send("No es posible equipar el item.")
-                        }
+                        return res.status(403).send("No es posible equipar el item.")
                     }
                 } else {
-                    return res.status(403).send("El Personaje no pertenece a la cuenta a la que ingresaste.");
+                    return res.status(403).send("Tu clase no puede usar este objeto.")
+                }
+            } else {
+                if (body.operacion === "QUITAR") {
+                    if (item[0].tipo === "Ropa" && pj.ropa === body.itemNombre) {
+                        await Personajes.updateOne({ _id: pj._id },
+                            {
+                                $set: {
+                                    ropa: "-"
+                                }
+                            }
+                        )
+                        return res.status(200).send("Equipo modificado.");
+                    } else if (item[0].tipo === "Arma" && pj.arma === body.itemNombre) {
+                        await Personajes.updateOne({ _id: pj._id },
+                            {
+                                $set: {
+                                    arma: "-"
+                                }
+                            }
+                        )
+                        return res.status(200).send("Equipo modificado.");
+                    } else if (item[0].tipo === "Escudo" && pj.escudo === body.itemNombre) {
+                        await Personajes.updateOne({ _id: pj._id },
+                            {
+                                $set: {
+                                    escudo: "-"
+                                }
+                            }
+                        )
+                        return res.status(200).send("Equipo modificado.");
+                    } else if (item[0].tipo === "Casco" && pj.casco === body.itemNombre) {
+                        await Personajes.updateOne({ _id: body._id },
+                            {
+                                $set: {
+                                    casco: "-"
+                                }
+                            })
+                        return res.status(200).send("Equipo modificado.");
+                    } else if (item[0].tipo === "Joya" && pj.joya === body.itemNombre) {
+                        await Personajes.updateOne({ _id: pj._id },
+                            {
+                                $set: {
+                                    joya: "-"
+                                }
+                            }
+                        )
+                        return res.status(200).send("Equipo modificado.");
+                    } else {
+                        return res.status(403).send("No es posible quitar el item equipado.");
+                    }
+                } else {
+                    return res.status(403).send("Error: Operación indefinida.");
                 }
             }
+        } else {
+            return res.status(403).send("El Personaje no pertenece a la cuenta a la que ingresaste.");
         }
     } catch (error) {
-        console.log(error);
-        res.status(500).send(error.message);
+        return res.status(500).send(error.message);
     }
 }
 
-const ganarExperienciaCriaturas = async (req, res) => {
-    const {body} = req
+const ganarExperiencia = async (req, res) => {
+    const {body} = req; // pjNombre, experiencia
     try {
-        const pj = await Personajes.findOne({_id: body._id});
+        const token = req.header("Authorization");
+        if (!token) {
+            return res.status(403).send('No se detecto un token en la petición.')
+        }
+        const pj = await Personajes.findOne({nombre: body.pjNombre});
         if (!pj) {
             return res.status(200).send("Personaje no encontrado.");
         } else {
-            const { email } = jwt.decode(body.token, {complete: true}).payload;
+            const { email } = jwt.decode(token, {complete: true}).payload;
             const cuenta = await Cuentas.findOne({email: email});
             if (!cuenta) {
                 return res.status(403).send("Credenciales inválidas.");
@@ -419,23 +441,22 @@ const ganarExperienciaCriaturas = async (req, res) => {
                         for (let i = 1; i < iteraciones; i++) {
                             experienciaRequerida *= 1.20; // Multiplicamos por 1.20 para aumentar en un 20%.
                         }
-
                         let experienciaObtenida = body.experiencia
                         let experienciaPersonaje = pj.experiencia
                         let experienciaTotal = experienciaPersonaje + experienciaObtenida
-                        
                         if (experienciaTotal <= experienciaRequerida) {
-                            await Personajes.updateOne({_id: body._id},
+                            await Personajes.updateOne({_id: pj._id},
                                 {
                                     $set: {
                                         experiencia: experienciaTotal
                                     }
-                                })
-                            res.status(200).send({experienciaPersonaje, experienciaObtenida, experienciaTotal, experienciaRequerida})
+                                }
+                            )
+                            return res.status(200).send({experienciaPersonaje, experienciaObtenida, experienciaTotal, experienciaRequerida});
                         } else if (experienciaTotal > experienciaRequerida) {
                             let experienciaNueva = experienciaTotal - experienciaRequerida
                             let nuevoNivelPj = pj.nivel + 1
-                            await Personajes.updateOne({_id: body._id},
+                            await Personajes.updateOne({_id: pj._id},
                                 {
                                     $set: {
                                         nivel: nuevoNivelPj,
@@ -459,12 +480,12 @@ const ganarExperienciaCriaturas = async (req, res) => {
                                     }
                                 })
                             const msj = "¡Felicitaciones, has subido de nivel!"
-                            res.status(200).send({experienciaPersonaje, experienciaObtenida, msj, nuevoNivelPj, experienciaNueva, experienciaRequerida})
+                            return res.status(200).send({experienciaPersonaje, experienciaObtenida, msj, nuevoNivelPj, experienciaNueva, experienciaRequerida});
                         } else {
-                            res.status(200).send(`El personaje alcanzo el nivel máximo, no puedes obtener más experiencia.`)
+                            return res.status(200).send(`El personaje alcanzo el nivel máximo, no puedes obtener más experiencia.`);
                         }
                     } else {
-                        res.status(403).send(`Error con la experiencia y nivel del personaje.`)
+                        return res.status(403).send(`Error con la experiencia y nivel del personaje.`);
                     }
                 } else {
                     return res.status(403).send("El Personaje no pertenece a la cuenta a la que ingresaste.");
@@ -472,294 +493,302 @@ const ganarExperienciaCriaturas = async (req, res) => {
             }
         }
     } catch (error) {
-        console.log(error);
-        res.status(500).send(error.message);
+        return res.status(500).send(error.message);
     }
 }
 
 const asignarSkills = async (req, res) => {
-    const {body} = req
+    const {body} = req; //pjNombre, 
     try {
-        const pj = await Personajes.findOne({_id: body._id});
+        const token = req.header("Authorization");
+        if (!token) {
+            return res.status(403).send('No se detecto un token en la petición.')
+        }
+        const pj = await Personajes.findOne({nombre: body.pjNombre});
         if (!pj) {
             return res.status(200).send("Personaje no encontrado.");
-        } else {
-            const { email } = jwt.decode(body.token, {complete: true}).payload;
-            const cuenta = await Cuentas.findOne({email: email});
-            if (!cuenta) {
-                return res.status(403).send("Credenciales inválidas.");
-            } else {
-                if (cuenta.pjs.includes(pj.nombre) === true ) {
-                    let iteraciones = pj.skills.obtenidos - pj.skills.disponibles;
-                    let valorBaseSkill = 35;
-                    for (let i = 0; i < iteraciones; i++) {
-                        valorBaseSkill *= 1.15; 
-                    }
-                    let valorSkill = Math.round(valorBaseSkill)
-                    if (pj.oro >= valorSkill) {
-                        if (body.atributoModificado === "Vida") {
-                            await Personajes.updateOne({_id: body._id},
-                                {
-                                    $set: {
-                                        oro: pj.oro - valorSkill,
-                                        atributos: {
-                                            vida: pj.atributos.vida + 1,
-                                            fuerza: pj.atributos.fuerza,
-                                            resistencia: pj.atributos.resistencia,
-                                            destreza: pj.atributos.destreza,
-                                            inteligencia: pj.atributos.inteligencia,
-                                            liderazgo: pj.atributos.liderazgo,
-                                            combate: pj.atributos.combate,
-                                            defensa: pj.atributos.defensa,
-                                            navegacion: pj.atributos.navegacion
-                                        },
-                                        skills: {
-                                            obtenidos: pj.skills.obtenidos,
-                                            disponibles: pj.skills.disponibles - 1
-                                        }
-                                    }
-                                })
-                            res.status(201).send("Skill asignado.");
-                        } else if (body.atributoModificado === "Fuerza") {
-                            await Personajes.updateOne({_id: body._id},
-                                {
-                                    $set: {
-                                        oro: pj.oro - valorSkill,
-                                        atributos: {
-                                            vida: pj.atributos.vida,
-                                            fuerza: pj.atributos.fuerza + 1,
-                                            resistencia: pj.atributos.resistencia,
-                                            destreza: pj.atributos.destreza,
-                                            inteligencia: pj.atributos.inteligencia,
-                                            liderazgo: pj.atributos.liderazgo,
-                                            combate: pj.atributos.combate,
-                                            defensa: pj.atributos.defensa,
-                                            navegacion: pj.atributos.navegacion
-                                        },
-                                        skills: {
-                                            obtenidos: pj.skills.obtenidos,
-                                            disponibles: pj.skills.disponibles - 1
-                                        }
-                                    }
-                                })
-                            res.status(201).send("Transacción realizada.");
-                        } else if (body.atributoModificado === "Resistencia") {
-                            await Personajes.updateOne({_id: body._id},
-                                {
-                                    $set: {
-                                        oro: pj.oro - valorSkill,
-                                        atributos: {
-                                            vida: pj.atributos.vida,
-                                            fuerza: pj.atributos.fuerza,
-                                            resistencia: pj.atributos.resistencia + 1,
-                                            destreza: pj.atributos.destreza,
-                                            inteligencia: pj.atributos.inteligencia,
-                                            liderazgo: pj.atributos.liderazgo,
-                                            combate: pj.atributos.combate,
-                                            defensa: pj.atributos.defensa,
-                                            navegacion: pj.atributos.navegacion
-                                        },
-                                        skills: {
-                                            obtenidos: pj.skills.obtenidos,
-                                            disponibles: pj.skills.disponibles - 1
-                                        }
-                                    }
-                                })
-                            res.status(201).send("Skill asignado.");
-                        } else if (body.atributoModificado === "Destreza") {
-                            await Personajes.updateOne({_id: body._id},
-                                {
-                                    $set: {
-                                        oro: pj.oro - valorSkill,
-                                        atributos: {
-                                            vida: pj.atributos.vida,
-                                            fuerza: pj.atributos.fuerza,
-                                            resistencia: pj.atributos.resistencia,
-                                            destreza: pj.atributos.destreza + 1,
-                                            inteligencia: pj.atributos.inteligencia,
-                                            liderazgo: pj.atributos.liderazgo,
-                                            combate: pj.atributos.combate,
-                                            defensa: pj.atributos.defensa,
-                                            navegacion: pj.atributos.navegacion
-                                        },
-                                        skills: {
-                                            obtenidos: pj.skills.obtenidos,
-                                            disponibles: pj.skills.disponibles - 1
-                                        }
-                                    }
-                                })
-                            res.status(201).send("Skill asignado.");
-                        } else if (body.atributoModificado === "Inteligencia") {
-                            await Personajes.updateOne({_id: body._id},
-                                {
-                                    $set: {
-                                        oro: pj.oro - valorSkill,
-                                        atributos: {
-                                            vida: pj.atributos.vida,
-                                            fuerza: pj.atributos.fuerza,
-                                            resistencia: pj.atributos.resistencia,
-                                            destreza: pj.atributos.destreza,
-                                            inteligencia: pj.atributos.inteligencia + 1,
-                                            liderazgo: pj.atributos.liderazgo,
-                                            combate: pj.atributos.combate,
-                                            defensa: pj.atributos.defensa,
-                                            navegacion: pj.atributos.navegacion
-                                        },
-                                        skills: {
-                                            obtenidos: pj.skills.obtenidos,
-                                            disponibles: pj.skills.disponibles - 1
-                                        }
-                                    }
-                                })
-                            res.status(201).send("Transacción realizada.");
-                        } else if (body.atributoModificado === "Liderazgo") {
-                            await Personajes.updateOne({_id: body._id},
-                                {
-                                    $set: {
-                                        oro: pj.oro - valorSkill,
-                                        atributos: {
-                                            vida: pj.atributos.vida,
-                                            fuerza: pj.atributos.fuerza,
-                                            resistencia: pj.atributos.resistencia,
-                                            destreza: pj.atributos.destreza,
-                                            inteligencia: pj.atributos.inteligencia,
-                                            liderazgo: pj.atributos.liderazgo + 1,
-                                            combate: pj.atributos.combate,
-                                            defensa: pj.atributos.defensa,
-                                            navegacion: pj.atributos.navegacion
-                                        },
-                                        skills: {
-                                            obtenidos: pj.skills.obtenidos,
-                                            disponibles: pj.skills.disponibles - 1
-                                        }
-                                    }
-                                })
-                            res.status(201).send("Skill asignado.");
-                        } else if (body.atributoModificado === "Combate") {
-                            await Personajes.updateOne({_id: body._id},
-                                {
-                                    $set: {
-                                        oro: pj.oro - valorSkill,
-                                        atributos: {
-                                            vida: pj.atributos.vida,
-                                            fuerza: pj.atributos.fuerza,
-                                            resistencia: pj.atributos.resistencia,
-                                            destreza: pj.atributos.destreza,
-                                            inteligencia: pj.atributos.inteligencia,
-                                            liderazgo: pj.atributos.liderazgo,
-                                            combate: pj.atributos.combate + 1,
-                                            defensa: pj.atributos.defensa,
-                                            navegacion: pj.atributos.navegacion
-                                        },
-                                        skills: {
-                                            obtenidos: pj.skills.obtenidos,
-                                            disponibles: pj.skills.disponibles - 1
-                                        }
-                                    }
-                                })
-                            res.status(201).send("Skill asignado.");
-                        } else if (body.atributoModificado === "Defensa") {
-                            await Personajes.updateOne({_id: body._id},
-                                {
-                                    $set: {
-                                        oro: pj.oro - valorSkill,
-                                        atributos: {
-                                            vida: pj.atributos.vida,
-                                            fuerza: pj.atributos.fuerza,
-                                            resistencia: pj.atributos.resistencia,
-                                            destreza: pj.atributos.destreza,
-                                            inteligencia: pj.atributos.inteligencia,
-                                            liderazgo: pj.atributos.liderazgo,
-                                            combate: pj.atributos.combate,
-                                            defensa: pj.atributos.defensa + 1,
-                                            navegacion: pj.atributos.navegacion
-                                        },
-                                        skills: {
-                                            obtenidos: pj.skills.obtenidos,
-                                            disponibles: pj.skills.disponibles - 1
-                                        }
-                                    }
-                                })
-                            res.status(201).send("Skill asignado.");
-                        } else if (body.atributoModificado === "Navegacion") {
-                            await Personajes.updateOne({_id: body._id},
-                                {
-                                    $set: {
-                                        oro: pj.oro - valorSkill,
-                                        atributos: {
-                                            vida: pj.atributos.vida,
-                                            fuerza: pj.atributos.fuerza,
-                                            resistencia: pj.atributos.resistencia,
-                                            destreza: pj.atributos.destreza,
-                                            inteligencia: pj.atributos.inteligencia,
-                                            liderazgo: pj.atributos.liderazgo,
-                                            combate: pj.atributos.combate,
-                                            defensa: pj.atributos.defensa,
-                                            navegacion: pj.atributos.navegacion + 1 
-                                        },
-                                        skills: {
-                                            obtenidos: pj.skills.obtenidos,
-                                            disponibles: pj.skills.disponibles - 1
-                                        }
-                                    }
-                                })
-                            res.status(201).send("Skill asignado.");
-                        } else {
-                            res.status(403).send("Transacción rechazada, no es posible modificar el atributo solicitado.");
-                        }
-                    } else {
-                        res.status(403).send("Transacción rechazada, no tienes suficiente oro.");
-                    }
-                } else {
-                    return res.status(403).send("El Personaje no pertenece a la cuenta a la que ingresaste.");
-                }
+        } 
+        const { email } = jwt.decode(token, { complete: true }).payload;
+        const cuenta = await Cuentas.findOne({ email: email });
+        if (!cuenta) {
+            return res.status(403).send("Credenciales inválidas.");
+        } 
+        if (cuenta.pjs.includes(pj.nombre) === true) {
+            let iteraciones = pj.skills.obtenidos - pj.skills.disponibles;
+            let valorBaseSkill = 35;
+            for (let i = 0; i < iteraciones; i++) {
+                valorBaseSkill *= 1.15;
             }
+            let valorSkill = Math.round(valorBaseSkill)
+            if (pj.oro >= valorSkill) {
+                if (body.atributoModificado === "VIDA") {
+                    await Personajes.updateOne({ _id: pj._id },
+                        {
+                            $set: {
+                                oro: pj.oro - valorSkill,
+                                atributos: {
+                                    vida: pj.atributos.vida + 1,
+                                    fuerza: pj.atributos.fuerza,
+                                    resistencia: pj.atributos.resistencia,
+                                    destreza: pj.atributos.destreza,
+                                    inteligencia: pj.atributos.inteligencia,
+                                    liderazgo: pj.atributos.liderazgo,
+                                    combate: pj.atributos.combate,
+                                    defensa: pj.atributos.defensa,
+                                    navegacion: pj.atributos.navegacion
+                                },
+                                skills: {
+                                    obtenidos: pj.skills.obtenidos,
+                                    disponibles: pj.skills.disponibles - 1
+                                }
+                            }
+                        }
+                    )
+                    return res.status(201).send("Skill asignado.");
+                } else if (body.atributoModificado === "FUERZA") {
+                    await Personajes.updateOne({ _id: pj._id },
+                        {
+                            $set: {
+                                oro: pj.oro - valorSkill,
+                                atributos: {
+                                    vida: pj.atributos.vida,
+                                    fuerza: pj.atributos.fuerza + 1,
+                                    resistencia: pj.atributos.resistencia,
+                                    destreza: pj.atributos.destreza,
+                                    inteligencia: pj.atributos.inteligencia,
+                                    liderazgo: pj.atributos.liderazgo,
+                                    combate: pj.atributos.combate,
+                                    defensa: pj.atributos.defensa,
+                                    navegacion: pj.atributos.navegacion
+                                },
+                                skills: {
+                                    obtenidos: pj.skills.obtenidos,
+                                    disponibles: pj.skills.disponibles - 1
+                                }
+                            }
+                        }
+                    )
+                    return res.status(201).send("Transacción realizada.");
+                } else if (body.atributoModificado === "RESISTENCIA") {
+                    await Personajes.updateOne({ _id: pj._id },
+                        {
+                            $set: {
+                                oro: pj.oro - valorSkill,
+                                atributos: {
+                                    vida: pj.atributos.vida,
+                                    fuerza: pj.atributos.fuerza,
+                                    resistencia: pj.atributos.resistencia + 1,
+                                    destreza: pj.atributos.destreza,
+                                    inteligencia: pj.atributos.inteligencia,
+                                    liderazgo: pj.atributos.liderazgo,
+                                    combate: pj.atributos.combate,
+                                    defensa: pj.atributos.defensa,
+                                    navegacion: pj.atributos.navegacion
+                                },
+                                skills: {
+                                    obtenidos: pj.skills.obtenidos,
+                                    disponibles: pj.skills.disponibles - 1
+                                }
+                            }
+                        }
+                    )
+                    return res.status(201).send("Skill asignado.");
+                } else if (body.atributoModificado === "DESTREZA") {
+                    await Personajes.updateOne({ _id: pj._id },
+                        {
+                            $set: {
+                                oro: pj.oro - valorSkill,
+                                atributos: {
+                                    vida: pj.atributos.vida,
+                                    fuerza: pj.atributos.fuerza,
+                                    resistencia: pj.atributos.resistencia,
+                                    destreza: pj.atributos.destreza + 1,
+                                    inteligencia: pj.atributos.inteligencia,
+                                    liderazgo: pj.atributos.liderazgo,
+                                    combate: pj.atributos.combate,
+                                    defensa: pj.atributos.defensa,
+                                    navegacion: pj.atributos.navegacion
+                                },
+                                skills: {
+                                    obtenidos: pj.skills.obtenidos,
+                                    disponibles: pj.skills.disponibles - 1
+                                }
+                            }
+                        }
+                    )
+                    return res.status(201).send("Skill asignado.");
+                } else if (body.atributoModificado === "INTELIGENCIA") {
+                    await Personajes.updateOne({ _id: pj._id },
+                        {
+                            $set: {
+                                oro: pj.oro - valorSkill,
+                                atributos: {
+                                    vida: pj.atributos.vida,
+                                    fuerza: pj.atributos.fuerza,
+                                    resistencia: pj.atributos.resistencia,
+                                    destreza: pj.atributos.destreza,
+                                    inteligencia: pj.atributos.inteligencia + 1,
+                                    liderazgo: pj.atributos.liderazgo,
+                                    combate: pj.atributos.combate,
+                                    defensa: pj.atributos.defensa,
+                                    navegacion: pj.atributos.navegacion
+                                },
+                                skills: {
+                                    obtenidos: pj.skills.obtenidos,
+                                    disponibles: pj.skills.disponibles - 1
+                                }
+                            }
+                        }
+                    )
+                    return res.status(201).send("Skill asignado.");
+                } else if (body.atributoModificado === "LIDERAZGO") {
+                    await Personajes.updateOne({ _id: pj._id },
+                        {
+                            $set: {
+                                oro: pj.oro - valorSkill,
+                                atributos: {
+                                    vida: pj.atributos.vida,
+                                    fuerza: pj.atributos.fuerza,
+                                    resistencia: pj.atributos.resistencia,
+                                    destreza: pj.atributos.destreza,
+                                    inteligencia: pj.atributos.inteligencia,
+                                    liderazgo: pj.atributos.liderazgo + 1,
+                                    combate: pj.atributos.combate,
+                                    defensa: pj.atributos.defensa,
+                                    navegacion: pj.atributos.navegacion
+                                },
+                                skills: {
+                                    obtenidos: pj.skills.obtenidos,
+                                    disponibles: pj.skills.disponibles - 1
+                                }
+                            }
+                        }
+                    )
+                    return res.status(201).send("Skill asignado.");
+                } else if (body.atributoModificado === "COMBATE") {
+                    await Personajes.updateOne({ _id: pj._id },
+                        {
+                            $set: {
+                                oro: pj.oro - valorSkill,
+                                atributos: {
+                                    vida: pj.atributos.vida,
+                                    fuerza: pj.atributos.fuerza,
+                                    resistencia: pj.atributos.resistencia,
+                                    destreza: pj.atributos.destreza,
+                                    inteligencia: pj.atributos.inteligencia,
+                                    liderazgo: pj.atributos.liderazgo,
+                                    combate: pj.atributos.combate + 1,
+                                    defensa: pj.atributos.defensa,
+                                    navegacion: pj.atributos.navegacion
+                                },
+                                skills: {
+                                    obtenidos: pj.skills.obtenidos,
+                                    disponibles: pj.skills.disponibles - 1
+                                }
+                            }
+                        }
+                    )
+                    return res.status(201).send("Skill asignado.");
+                } else if (body.atributoModificado === "DEFENSA") {
+                    await Personajes.updateOne({ _id: pj._id },
+                        {
+                            $set: {
+                                oro: pj.oro - valorSkill,
+                                atributos: {
+                                    vida: pj.atributos.vida,
+                                    fuerza: pj.atributos.fuerza,
+                                    resistencia: pj.atributos.resistencia,
+                                    destreza: pj.atributos.destreza,
+                                    inteligencia: pj.atributos.inteligencia,
+                                    liderazgo: pj.atributos.liderazgo,
+                                    combate: pj.atributos.combate,
+                                    defensa: pj.atributos.defensa + 1,
+                                    navegacion: pj.atributos.navegacion
+                                },
+                                skills: {
+                                    obtenidos: pj.skills.obtenidos,
+                                    disponibles: pj.skills.disponibles - 1
+                                }
+                            }
+                        }
+                    )
+                    return res.status(201).send("Skill asignado.");
+                } else if (body.atributoModificado === "NAVEGACION") {
+                    await Personajes.updateOne({ _id: pj._id },
+                        {
+                            $set: {
+                                oro: pj.oro - valorSkill,
+                                atributos: {
+                                    vida: pj.atributos.vida,
+                                    fuerza: pj.atributos.fuerza,
+                                    resistencia: pj.atributos.resistencia,
+                                    destreza: pj.atributos.destreza,
+                                    inteligencia: pj.atributos.inteligencia,
+                                    liderazgo: pj.atributos.liderazgo,
+                                    combate: pj.atributos.combate,
+                                    defensa: pj.atributos.defensa,
+                                    navegacion: pj.atributos.navegacion + 1
+                                },
+                                skills: {
+                                    obtenidos: pj.skills.obtenidos,
+                                    disponibles: pj.skills.disponibles - 1
+                                }
+                            }
+                        }
+                    )
+                    return res.status(201).send("Skill asignado.");
+                } else {
+                    return res.status(403).send("Transacción rechazada, no es posible modificar el atributo solicitado.");
+                }
+            } else {
+                return res.status(403).send("Transacción rechazada, no tienes suficiente oro.");
+            }
+        } else {
+            return res.status(403).send("El Personaje no pertenece a la cuenta a la que ingresaste.");
         }
     } catch (error) {
-        console.log(error);
-        res.status(500).send(error.message);
+        return res.status(500).send(error.message);
     }
 }
 
 const eliminarPersonaje = async (req, res) => {
-    const {body} = req
+    const {body} = req; //pjNombre, pin
     try {
-        const pj = await Personajes.findOne({_id: body._id});
+        const token = req.header("Authorization");
+        if (!token) {
+            return res.status(403).send('No se detecto un token en la petición.')
+        }
+        const pj = await Personajes.findOne({nombre: body.pjNombre});
         if (!pj) {
             return res.status(200).send("Personaje no encontrado.");
-        } else {
-            const { email } = jwt.decode(body.token, {complete: true}).payload;
-            const cuenta = await Cuentas.findOne({email: email});
-            if (!cuenta) {
-                return res.status(403).send("Credenciales inválidas.");
-            } else {
-                if (cuenta.pjs.includes(pj.nombre) === true ) {
-                    const pinMatch = await bcrypt.compare(body.pin, cuenta.pin);
-                    if (pinMatch) {
-                        let listaPersonajesNueva = cuenta.pjs.filter((personaje) => personaje !== pj.nombre)
-                        if (listaPersonajesNueva.length === 0) {
-                            listaPersonajesNueva = ["-"]
+        } 
+        const { email } = jwt.decode(token, { complete: true }).payload;
+        const cuenta = await Cuentas.findOne({ email: email });
+        if (!cuenta) {
+            return res.status(403).send("Credenciales inválidas.");
+        } 
+        if (cuenta.pjs.includes(pj.nombre) === true) {
+            const pinMatch = await bcrypt.compare(body.pin, cuenta.pin);
+            if (pinMatch) {
+                let listaPersonajesNueva = cuenta.pjs.filter((personaje) => personaje !== pj.nombre);
+                await Personajes.deleteOne({ _id: pj._id })
+                await Cuentas.updateOne({ email: email },
+                    {
+                        $set: {
+                            pjs: listaPersonajesNueva
                         }
-                        await Personajes.deleteOne({_id: pj._id})
-                        await Cuentas.updateOne({email: email},
-                            {
-                                $set: {
-                                    pjs: listaPersonajesNueva
-                                }
-                            })
-                        res.status(200).send("Personaje borrado.")
-                    } else {
-                        res.status(403).send("Pin inválido.");
                     }
-                } else {
-                    return res.status(403).send("El Personaje que quieres borrar no pertenece a la cuenta a la que ingresaste.");
-                }
+                )
+                return res.status(200).send("Personaje borrado.")
+            } else {
+                return res.status(403).send("Pin inválido.");
             }
+        } else {
+            return res.status(403).send("El Personaje que quieres borrar no pertenece a la cuenta a la que ingresaste.");
         }
     } catch (error) {
-        console.log(error);
-        res.status(500).send(error.message);
+        return res.status(500).send(error.message);
     }
 }
 
-module.exports = { createPersonaje, dataPersonaje, comercioPersonaje, equiparItem, ganarExperienciaCriaturas, asignarSkills, eliminarPersonaje }
+module.exports = { createPersonaje, dataPersonaje, comercioPersonaje, equiparItem, ganarExperiencia, asignarSkills, eliminarPersonaje }

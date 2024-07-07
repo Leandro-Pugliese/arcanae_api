@@ -144,7 +144,7 @@ const items = [
         precioCompra: 50,
         precioVenta: 25,
         skillsCombate: 0,
-        clasePermitida: ["Caballero", "Trabajador"],
+        clasePermitida: ["Caballero", "Druida", "Trabajador"],
         mejoraCombate: 1 
     },
     {
