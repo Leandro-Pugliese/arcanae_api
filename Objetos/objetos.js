@@ -67,7 +67,7 @@ const atributos = [
 const criaturas = [
     {
         nombre: "Serpiente",
-        vida: 100,
+        vida: 30,
         experiencia: 10,
         fuerza: 2,
         resistencia: 3,
@@ -96,7 +96,7 @@ const criaturas = [
         drop: "-"
     },  
     {
-        nombre: "Orco brujo",
+        nombre: "Orco_brujo",
         vida: 500,
         experiencia: 150,
         fuerza: 15,
@@ -207,44 +207,90 @@ const misiones = [
     {
         nombre: "Limpíeza del bosque",
         tipo: "NPC",
-        criatura: ["Serpiente"],
-        objetivo: [4],
-        obtenido: [0]
+        criatura: [
+            {
+                nombre: "Serpiente",
+                cantidad: 8
+            }
+        ],
+        recompensa: {
+            oro: 300,
+            experiencia: 150
+        }
     },
     {
         nombre: "Amenaza en manada",
         tipo: "NPC",
-        criatura: ["Lobo"],
-        objetivo: [12],
-        obtenido: [0]
+        criatura: [
+            {
+                nombre: "Lobo",
+                cantidad: 12
+            }
+        ],
+        recompensa: {
+            oro: 500,
+            experiencia: 400
+        }
     },
     {
         nombre: "Bandidos",
         tipo: "NPC",
-        criatura: ["Bandido"],
-        objetivo: [10],
-        obtenido: [0]
+        criatura: [
+            {
+                nombre: "Bandido",
+                cantidad: 10
+            }
+        ],
+        recompensa: {
+            oro: 1000,
+            experiencia: 800
+        }
     },
     {
-        nombre: "Explorando cuevas",
+        nombre: "Explorando cuevas 2",
         tipo: "NPC",
-        criatura: ["Orco brujo", "Troll"],
-        objetivo: [4, 1],
-        obtenido: [0, 0]
+        criatura: [
+            {
+                nombre: "Orco_brujo",
+                cantidad: 4
+            },
+            {
+                nombre: "Treoll",
+                cantidad: 2
+            }
+        ],
+        recompensa: {
+            oro: 1700,
+            experiencia: 1600
+        }
     },
     {
         nombre: "Busca pleitos",
         tipo: "PVP",
-        criatura: ["PVP"],
-        objetivo: [3],
-        obtenido: [0]
+        criatura: [
+            {
+                nombre: "PVP",
+                cantidad: 5
+            }
+        ],
+        recompensa: {
+            oro: 1500,
+            experiencia: 1500
+        }
     },
     {
         nombre: "Sed de sangre",
         tipo: "PVP",
-        criatura: ["PVP"],
-        objetivo: [10],
-        obtenido: [0]
+        criatura: [
+            {
+                nombre: "PVP",
+                cantidad: 10
+            }
+        ],
+        recompensa: {
+            oro: 3000,
+            experiencia: 3000
+        }
     }
 ]
 

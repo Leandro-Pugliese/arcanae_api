@@ -74,6 +74,10 @@ const personajeSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
+    mensajes: {
+        type: [],
+        required: true
+    },
     status: {
         type: String,
         required: true

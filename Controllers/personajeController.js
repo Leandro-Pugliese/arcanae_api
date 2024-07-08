@@ -57,6 +57,7 @@ const createPersonaje = async (req, res) => {
             casco: "-",
             joya: "-",
             refugio: 0,
+            mensajes: [],
             status: "Ciudadano",
             usuariosDerrotados: 0,
             ciudadanosDerrotados: 0,
@@ -100,10 +101,9 @@ const createPersonaje = async (req, res) => {
                 }
             })
         const mensaje = "Personaje creado exitosamente.";
-        res.status(201).send({ personaje, mensaje });
+        return res.status(201).send({ personaje, mensaje });
     } catch (error) {
-        console.log(error);
-        res.status(500).send(error.message);
+        return res.status(500).send(error.message);
     }
 }
 
@@ -123,17 +123,16 @@ const dataPersonaje = async (req, res) => {
         const pj = await Personajes.findOne({nombre: nombreEnMayusculas});
         if (!pj) {
             return res.status(403).send("Personaje no encontrado.");
-        } else {
-            //Doble verificación la cuenta debe tener el nombre del pj y el pj debe tener el id de la cuenta como owner.
-            let personajesCuenta = [...cuenta.pjs];
-            if (personajesCuenta.includes(pj.nombre) === false) {
-                return res.status(403).send("El Personaje no pertenece a la cuenta logueada.");
-            }
-            if (pj.owner !== cuenta._id.toString()) {
-                return res.status(403).send("El Personaje no pertenece a la cuenta logueada.");
-            }
-            return res.status(201).send(pj);
+        } 
+        //Doble verificación la cuenta debe tener el nombre del pj y el pj debe tener el id de la cuenta como owner.
+        let personajesCuenta = [...cuenta.pjs];
+        if (personajesCuenta.includes(pj.nombre) === false) {
+            return res.status(403).send("El Personaje no pertenece a la cuenta logueada.");
         }
+        if (pj.owner !== cuenta._id.toString()) {
+            return res.status(403).send("El Personaje no pertenece a la cuenta logueada.");
+        }
+        return res.status(201).send(pj);
     } catch (error) {
         return res.status(500).send(error.message);
     }
@@ -482,10 +481,10 @@ const ganarExperiencia = async (req, res) => {
                             const msj = "¡Felicitaciones, has subido de nivel!"
                             return res.status(200).send({experienciaPersonaje, experienciaObtenida, msj, nuevoNivelPj, experienciaNueva, experienciaRequerida});
                         } else {
-                            return res.status(200).send(`El personaje alcanzo el nivel máximo, no puedes obtener más experiencia.`);
+                            return res.status(403).send(`Error con la experiencia y nivel del personaje.`);
                         }
                     } else {
-                        return res.status(403).send(`Error con la experiencia y nivel del personaje.`);
+                        return res.status(200).send(`El personaje alcanzo el nivel máximo, no puedes obtener más experiencia.`);
                     }
                 } else {
                     return res.status(403).send("El Personaje no pertenece a la cuenta a la que ingresaste.");

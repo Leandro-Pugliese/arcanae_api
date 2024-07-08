@@ -29,9 +29,9 @@ const createCuenta = async (req, res) => {
         })
         const token = signToken(cuenta._id, cuenta.email);
         const mensaje = "Cuenta creada exitosamente.";
-        res.status(201).send({token, cuenta, mensaje});
+        return res.status(201).send({token, cuenta, mensaje});
     } catch (error) {
-        res.status(500).send(error.message);
+        return res.status(500).send(error.message);
     }
 }
 
@@ -51,7 +51,7 @@ const loginCuenta = async (req, res) => {
             }
         }
     } catch (error) {
-        res.status(500).send(error.message);
+        return res.status(500).send(error.message);
     }
 }
 

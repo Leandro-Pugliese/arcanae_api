@@ -2,6 +2,7 @@ const express = require("express");
 const { isAuthenticated } = require("../Authentication/authentication");
 const { createCuenta, loginCuenta } = require("../Controllers/cuentaController");
 const { createPersonaje, dataPersonaje, comercioPersonaje, equiparItem, ganarExperiencia, asignarSkills, eliminarPersonaje } = require("../Controllers/personajeController");
+const { batallaCriaturas } = require("../Controllers/batallaController");
 
 const router = express.Router();
 
@@ -17,5 +18,8 @@ router.post("/equipar-item", isAuthenticated, equiparItem);
 router.post("/ganar-experiencia", isAuthenticated, ganarExperiencia);
 router.post("/asignar-skills", isAuthenticated, asignarSkills);
 router.post("/borrar-pj", isAuthenticated, eliminarPersonaje);
+
+// Rutas batalla
+router.post("/batalla-criaturas", isAuthenticated, batallaCriaturas);
 
 module.exports = router 
